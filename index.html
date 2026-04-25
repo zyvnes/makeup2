@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Progressive Jigsaw Puzzle</title>
 <style>
-  canvas { border: 1px solid #000; }
-  #status { margin-top: 10px; }
+  canvas { border: 1px solid #000; display: block; margin: 20px auto; }
+  #status { text-align: center; font-family: sans-serif; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -19,44 +19,61 @@ const canvas = document.getElementById('puzzleCanvas');
 const ctx = canvas.getContext('2d');
 const statusDiv = document.getElementById('status');
 
-let images = [
-  'https://imgur.com/OHsGe8S', // replace with your images
-  'https://imgur.com/HVGaK9y',
-  'https://imgur.com/fayDWbo'
+const images = [
+  'https://i.imgur.com/OHsGe8S.png', // Replace with your direct image URLs
+  'https://i.imgur.com/HVGaK9y.png',
+  'https://i.imgur.com/fayDWbo.png'
 ];
 
 let currentLevel = 0; // 0: 5x5, 1: 6x6, 2: 7x7
-let gridSize = [5, 6, 7];
-let currentGridSize = gridSize[currentLevel];
+const gridSizes = [5, 6, 7];
+let currentGridSize = gridSizes[currentLevel];
 
 let puzzleImage = new Image();
 let pieces = [];
 let pieceSize;
 let selectedPiece = null;
-let offsetX, offsetY;
+let offsetX = 0, offsetY = 0;
 
-function loadImage(index) {
-  return new Promise((resolve) => {
-    puzzleImage.src = images[index];
-    puzzleImage.onload = resolve;
+// Load image with error handling
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      console.log('Image loaded:', url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      console.error('Failed to load image:', url);
+      reject(new Error('Image load error'));
+    };
+    img.src = url;
   });
 }
 
 async function init() {
-  await loadImage(currentLevel);
-  createPieces();
-  shufflePieces();
-  draw();
+  try {
+    statusDiv.innerText = "Loading image...";
+    puzzleImage = await loadImage(images[currentLevel]);
+    statusDiv.innerText = "Creating pieces...";
+    createPieces();
+    shufflePieces();
+    statusDiv.innerText = "Ready!";
+    draw();
+  } catch (error) {
+    statusDiv.innerText = "Error loading images.";
+    console.error(error);
+  }
 }
 
 function createPieces() {
   pieces = [];
-  pieceSize = canvas.width / currentGridSize;
+  pieceSize = Math.min(canvas.width, canvas.height) / currentGridSize;
   for (let y = 0; y < currentGridSize; y++) {
     for (let x = 0; x < currentGridSize; x++) {
       const piece = {
-        x: x,
-        y: y,
+        x,
+        y,
         correctX: x,
         correctY: y,
         imgX: x * pieceSize,
@@ -135,6 +152,7 @@ function onMouseUp() {
     checkSnap(selectedPiece);
     selectedPiece = null;
     if (isPuzzleComplete()) {
+      alert("Puzzle completed! Moving to next level...");
       nextLevel();
     }
   }
@@ -170,17 +188,14 @@ function isPuzzleComplete() {
 function nextLevel() {
   if (currentLevel < images.length - 1) {
     currentLevel++;
-    currentGridSize = gridSize[currentLevel];
-    loadImage(currentLevel).then(() => {
-      createPieces();
-      shufflePieces();
-    });
+    currentGridSize = gridSizes[currentLevel];
+    init(); // Restart with next image and grid size
   } else {
-    alert("Congratulations! You've completed all puzzles.");
+    alert("Congratulations! You've completed all puzzles!");
   }
 }
 
-// Initialize the puzzle
+// Start the game
 init();
 
 </script>
