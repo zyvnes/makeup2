@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Progressive Jigsaw Puzzle</title>
+<style>
+  canvas { border: 1px solid #000; }
+  #status { margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<canvas id="puzzleCanvas" width="600" height="600"></canvas>
+<div id="status">Loading...</div>
+
+<script>
+const canvas = document.getElementById('puzzleCanvas');
+const ctx = canvas.getContext('2d');
+const statusDiv = document.getElementById('status');
+
+let images = [
+  'https://imgur.com/OHsGe8S', // replace with your images
+  'https://imgur.com/HVGaK9y',
+  'https://imgur.com/fayDWbo'
+];
+
+let currentLevel = 0; // 0: 5x5, 1: 6x6, 2: 7x7
+let gridSize = [5, 6, 7];
+let currentGridSize = gridSize[currentLevel];
+
+let puzzleImage = new Image();
+let pieces = [];
+let pieceSize;
+let selectedPiece = null;
+let offsetX, offsetY;
+
+function loadImage(index) {
+  return new Promise((resolve) => {
+    puzzleImage.src = images[index];
+    puzzleImage.onload = resolve;
+  });
+}
+
+async function init() {
+  await loadImage(currentLevel);
+  createPieces();
+  shufflePieces();
+  draw();
+}
+
+function createPieces() {
+  pieces = [];
+  pieceSize = canvas.width / currentGridSize;
+  for (let y = 0; y < currentGridSize; y++) {
+    for (let x = 0; x < currentGridSize; x++) {
+      const piece = {
+        x: x,
+        y: y,
+        correctX: x,
+        correctY: y,
+        imgX: x * pieceSize,
+        imgY: y * pieceSize,
+        width: pieceSize,
+        height: pieceSize,
+        currentX: Math.random() * (canvas.width - pieceSize),
+        currentY: Math.random() * (canvas.height - pieceSize),
+        isCorrect: false
+      };
+      pieces.push(piece);
+    }
+  }
+}
+
+function shufflePieces() {
+  for (let i = pieces.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const p of pieces) {
+    ctx.save();
+    ctx.translate(p.currentX, p.currentY);
+    ctx.drawImage(
+      puzzleImage,
+      p.imgX,
+      p.imgY,
+      p.width,
+      p.height,
+      0,
+      0,
+      p.width,
+      p.height
+    );
+    ctx.restore();
+  }
+  requestAnimationFrame(draw);
+}
+
+canvas.addEventListener('mousedown', onMouseDown);
+canvas.addEventListener('mouseup', onMouseUp);
+canvas.addEventListener('mousemove', onMouseMove);
+
+function getPieceAt(x, y) {
+  for (let i = pieces.length - 1; i >= 0; i--) {
+    const p = pieces[i];
+    if (
+      x >= p.currentX &&
+      x <= p.currentX + p.width &&
+      y >= p.currentY &&
+      y <= p.currentY + p.height
+    ) {
+      return p;
+    }
+  }
+  return null;
+}
+
+function onMouseDown(e) {
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  selectedPiece = getPieceAt(mouseX, mouseY);
+  if (selectedPiece) {
+    offsetX = mouseX - selectedPiece.currentX;
+    offsetY = mouseY - selectedPiece.currentY;
+  }
+}
+
+function onMouseUp() {
+  if (selectedPiece) {
+    checkSnap(selectedPiece);
+    selectedPiece = null;
+    if (isPuzzleComplete()) {
+      nextLevel();
+    }
+  }
+}
+
+function onMouseMove(e) {
+  if (selectedPiece) {
+    const rect = canvas.getBoundingClientRect();
+    selectedPiece.currentX = e.clientX - rect.left - offsetX;
+    selectedPiece.currentY = e.clientY - rect.top - offsetY;
+  }
+}
+
+function checkSnap(piece) {
+  const snapX = piece.correctX * pieceSize;
+  const snapY = piece.correctY * pieceSize;
+  if (
+    Math.abs(piece.currentX - snapX) < pieceSize / 2 &&
+    Math.abs(piece.currentY - snapY) < pieceSize / 2
+  ) {
+    piece.currentX = snapX;
+    piece.currentY = snapY;
+    piece.isCorrect = true;
+  } else {
+    piece.isCorrect = false;
+  }
+}
+
+function isPuzzleComplete() {
+  return pieces.every(p => p.isCorrect);
+}
+
+function nextLevel() {
+  if (currentLevel < images.length - 1) {
+    currentLevel++;
+    currentGridSize = gridSize[currentLevel];
+    loadImage(currentLevel).then(() => {
+      createPieces();
+      shufflePieces();
+    });
+  } else {
+    alert("Congratulations! You've completed all puzzles.");
+  }
+}
+
+// Initialize the puzzle
+init();
+
+</script>
+</body>
+</html>
